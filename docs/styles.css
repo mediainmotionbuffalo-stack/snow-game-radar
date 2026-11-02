@@ -138,14 +138,30 @@ main { max-width: 560px; margin: 0 auto; }
 .hour-cond { font-size: 12px; }
 .hour-cond.snow { color: var(--ice); font-weight: 600; }
 
-/* ---------- Tabs ---------- */
-.tabs { display: flex; gap: 8px; padding: 26px var(--gutter) 2px; }
-.tabs button {
-  border: 1px solid var(--line); background: var(--glass); border-radius: 999px;
-  padding: 8px 15px; font-size: 14px; font-weight: 500; color: var(--mist); cursor: pointer;
-  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+/* ---------- Featured snow games + section heads ---------- */
+.section-head { margin: 30px var(--gutter) 4px; font: 900 28px/1 var(--display); }
+.featured .section-head { color: var(--frost); }
+.feature-grid { display: grid; gap: 12px; padding: 10px var(--gutter) 0; }
+.feature-card {
+  display: grid; gap: 8px; width: 100%; padding: 14px; text-align: left; cursor: pointer;
+  border-radius: 16px; background: var(--glass);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
-.tabs button[aria-selected="true"] { background: var(--frost); border-color: var(--frost); color: var(--ink); }
+.fc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
+.fc-kicker { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ice); }
+.feature-card.likely .fc-kicker { color: var(--amber); }
+.fc-kicker svg { width: 14px; height: 14px; }
+.fc-when { color: var(--mist); }
+.fc-teams { display: flex; align-items: center; gap: 10px; }
+.fc-teams .logo { width: 44px; height: 44px; font-size: 12px; }
+.fc-teams .at { font: 600 18px/1 var(--display); color: var(--mist); }
+.fc-title { font: 900 30px/0.95 var(--display); }
+.fc-bottom { display: flex; align-items: flex-end; gap: 16px; }
+.fc-snow { font: 900 44px/0.85 var(--display); color: var(--ice); }
+.feature-card.likely .fc-snow { color: var(--amber); }
+.fc-snow small { display: block; margin-top: 6px; font: 500 12px/1.2 var(--body); color: var(--mist); }
+.fc-facts { font-size: 13px; color: var(--mist); padding-bottom: 2px; }
+.list-head { margin-top: 34px; }
 
 /* ---------- Game list ---------- */
 .list { padding: 0 var(--gutter); }
@@ -156,13 +172,11 @@ main { max-width: 560px; margin: 0 auto; }
   background: repeating-linear-gradient(to right, rgba(233, 241, 247, 0.4) 0 2px, transparent 2px 12px);
   mask-image: linear-gradient(to right, #000, transparent); -webkit-mask-image: linear-gradient(to right, #000, transparent);
 }
-.day-games {
-  background: var(--glass); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+.day-games { display: grid; gap: 12px; padding-top: 4px; }
+.game-wrap {
+  border-radius: 14px; background: var(--glass);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
-.game-wrap + .game-wrap { border-top: 1px solid var(--line); }
-.game-wrap.likely { box-shadow: inset 3px 0 0 var(--amber); }
-.game-wrap.possible { box-shadow: inset 3px 0 0 var(--ice); }
 .game {
   width: 100%; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px;
   padding: 12px 14px; border: 0; background: none; text-align: left; cursor: pointer;
@@ -316,3 +330,45 @@ body.gv-open { overflow: hidden; }
   position: relative; margin: 0; padding: 0 24px; text-align: center;
   font: 900 52px/0.95 var(--display); text-wrap: balance; text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
 }
+
+/* ---------- Snowy glow: every game card glows, more snow = more glow (--snow runs 0 to 1) ---------- */
+.game-wrap, .feature-card {
+  --snow: 0;
+  position: relative;
+  border: 1px solid rgba(233, 241, 247, calc(0.16 + 0.64 * var(--snow)));
+  box-shadow:
+    0 0 calc(4px + 40px * var(--snow)) calc(-2px + 8px * var(--snow)) rgba(214, 233, 247, calc(0.04 + 0.62 * var(--snow))),
+    0 0 calc(2px + 8px * var(--snow)) rgba(255, 255, 255, calc(0.35 * var(--snow))),
+    inset 0 0 calc(18px * var(--snow)) rgba(233, 241, 247, calc(0.24 * var(--snow)));
+}
+/* one irregular, shaded bank of snow along the top edge, deeper as the forecast snow builds; none on dry games */
+.game-wrap::before, .feature-card::before {
+  --drift: calc(4px + 18px * var(--snow));
+  content: ''; position: absolute; left: 10px; right: 10px; top: calc(-0.6 * var(--drift)); height: var(--drift); pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 24' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23FFFFFF'/%3E%3Cstop offset='.65' stop-color='%23EEF5FA'/%3E%3Cstop offset='1' stop-color='%23C9DDEC'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 24C6 22 10 18 18 17C27 16 31 12 41 12C50 12 55 15 63 14C74 13 79 7 92 7C104 7 110 11 120 11C128 11 133 5 146 4C158 3 166 9 176 10C185 11 190 8 199 8C212 8 217 13 229 13C240 13 246 10 255 11C266 12 273 17 282 19C290 20 295 22 300 24Z' fill='url(%23s)'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+  opacity: clamp(0, calc((var(--snow) - 0.3) * 4), 1);
+}
+.flip::before { transform: scaleX(-1); }
+.game-wrap > *, .feature-card > * { position: relative; }
+
+/* ---------- Snow resting on logos and team names ----------
+   Logos: a white silhouette of the logo sits behind it, nudged up, so a thin rim of snow
+   shows along the logo's real top contour. Names: the tops of the letters are capped with
+   snow that has an uneven edge and a shaded underside. Both get deeper as --snow rises. */
+.capped { position: relative; display: inline-grid; flex: none; }
+.capped > * { grid-area: 1 / 1; }
+.capped > .logo:first-child { position: relative; z-index: 1; }
+img.logo.logo-snow {
+  z-index: 0; pointer-events: none;
+  transform: translateY(calc(-4% - 5% * var(--snow, 0))) scale(1.05, 1.03);
+  filter: brightness(0) invert(1) drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.8));
+}
+.capped:has(> span.logo)::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; border-radius: 50%; pointer-events: none;
+  background: #F6FAFD; box-shadow: 0 0 3px rgba(255, 255, 255, 0.7);
+  transform: translateY(calc(-6% - 5% * var(--snow, 0))) scale(1.04);
+}
+
+.snowy { position: relative; display: inline-block; }
+.snowcap { position: absolute; pointer-events: none; }

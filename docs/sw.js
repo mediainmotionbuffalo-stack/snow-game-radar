@@ -1,7 +1,7 @@
 // Snow Game Radar service worker: offline shell + push notifications.
 importScripts('config.js');
 
-const CACHE = 'snow-radar-v3';
+const CACHE = 'snow-radar-v6';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.json',
   'icons/icon-192.png', 'icons/icon-512.png'];
 const API = ((self.SNOW_RADAR && self.SNOW_RADAR.workerUrl) || '').replace(/\/$/, '');

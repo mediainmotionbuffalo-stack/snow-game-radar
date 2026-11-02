@@ -5,7 +5,7 @@
   const COLD = 35; // °F: at or below, precipitation could fall as snow
 
   const $ = sel => document.querySelector(sel);
-  const state = { data: null, filter: 'weather', open: new Set(), installPrompt: null };
+  const state = { data: null, installPrompt: null };
 
   // ---------- Formatting ----------
   const fmtTime = d => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -34,13 +34,20 @@
   function logo(team) {
     const fallback = `<span class="logo" style="background:${esc(team?.color || '#2B4566')}">${esc(team?.abbr || '')}</span>`;
     const url = logoUrl(team);
-    if (!url) return fallback;
-    return `<img class="logo" src="${esc(url)}" alt="${esc(team.name || team.abbr)}" loading="lazy" data-fallback="${esc(fallback)}">`;
+    if (!url) return `<span class="capped">${fallback}</span>`;
+    // second, whitened copy of the logo is masked to its top edge: snow that follows the logo's own outline
+    return `<span class="capped"><img class="logo" src="${esc(url)}" alt="${esc(team.name || team.abbr)}" loading="lazy" data-fallback="${esc(fallback)}"><img class="logo logo-snow" src="${esc(url)}" alt="" aria-hidden="true" loading="lazy" onerror="this.remove()"></span>`;
   }
   document.addEventListener('error', e => {
     const img = e.target;
     if (img.tagName === 'IMG' && img.dataset.fallback) img.outerHTML = img.dataset.fallback;
   }, true);
+
+  // A little snow resting on top of a team name
+  const seed = text => [...String(text)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7);
+  const snowy = text => `<span class="snowy" data-text="${esc(text)}" style="--seed:${seed(text) % 60}px">${esc(text)}</span>`;
+  // 0–1 strength of a game's frosty border glow: more forecast snow, more glow
+  const glow = g => (g.roof === 'dome' || !g.wx ? 0 : Math.round(snowScore(g)) / 100).toFixed(2);
 
   // 0–100 position on the snow meter
   function snowScore(g) {
@@ -52,6 +59,101 @@
     return Math.max(4, Math.round(cold * 20 + cold * w.precipChance * 0.15));
   }
 
+
+  // ---------- Snow resting on team names ----------
+  // Draws each name off-screen, finds the top surface of every letter, and piles
+  // small rounded mounds of snow there: thicker on flat tops, thinner on slopes,
+  // uneven like real snowfall, deeper when the game's forecast has more snow.
+  function capNames(root) {
+    const els = (root || document).querySelectorAll('.snowy:not([data-capped])');
+    for (const el of els) {
+      const text = el.dataset.text;
+      if (!text || !el.offsetWidth) continue;
+      el.setAttribute('data-capped', '');
+      const cs = getComputedStyle(el);
+      const fs = parseFloat(cs.fontSize);
+      const snow = parseFloat(cs.getPropertyValue('--snow')) || 0;
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      const pad = Math.ceil(fs * 0.3);
+      const W = el.offsetWidth + pad * 2, H = el.offsetHeight + pad * 2;
+
+      // 1. draw the word where it sits in the line box
+      const probe = document.createElement('canvas');
+      probe.width = Math.ceil(W * dpr); probe.height = Math.ceil(H * dpr);
+      const p = probe.getContext('2d');
+      p.scale(dpr, dpr);
+      p.font = `${cs.fontStyle} ${cs.fontWeight} ${fs}px ${cs.fontFamily}`;
+      p.textBaseline = 'alphabetic';
+      const m = p.measureText(text);
+      const lineH = el.offsetHeight;
+      const asc = m.fontBoundingBoxAscent, desc = m.fontBoundingBoxDescent;
+      const baseline = pad + (lineH - (asc + desc)) / 2 + asc;
+      p.fillStyle = '#000';
+      p.fillText(text, pad, baseline);
+      const data = p.getImageData(0, 0, probe.width, probe.height).data;
+      const cw = probe.width, ch = probe.height;
+
+      // 2. topmost solid pixel in each column = where snow can rest
+      const top = new Float32Array(cw).fill(-1);
+      for (let x = 0; x < cw; x++) {
+        for (let y = 0; y < ch; y++) {
+          if (data[(y * cw + x) * 4 + 3] > 140) { top[x] = y; break; }
+        }
+      }
+
+      // 3. split the top contour into surfaces (runs where the edge doesn't drop away steeply),
+      //    then heap each one into a rounded mound no taller than the surface is wide
+      const max = Math.max(2.5 * dpr, fs * dpr * (0.09 + 0.08 * snow));
+      const seedVal = seed(text);
+      const smooth = new Float32Array(cw);
+      const steep = 1.8 * dpr;
+      let x0 = 0;
+      while (x0 < cw) {
+        if (top[x0] < 0) { x0++; continue; }
+        let x1 = x0 + 1;
+        while (x1 < cw && top[x1] >= 0 && Math.abs(top[x1] - top[x1 - 1]) <= steep) x1++;
+        const w = x1 - x0;
+        if (w >= 2 * dpr) {
+          const cap = Math.min(max, w * 0.38);
+          for (let i = x0; i < x1; i++) {
+            const t = (i - x0 + 0.5) / w;
+            const dome = Math.pow(Math.sin(Math.PI * t), 0.55);
+            const noise = 0.82 + 0.18 * Math.sin(i / (fs * dpr * 0.06) + seedVal);
+            smooth[i] = cap * dome * noise;
+          }
+        }
+        x0 = x1;
+      }
+
+      // 4. paint the snow: white mound with a soft blue underside
+      const out = document.createElement('canvas');
+      out.className = 'snowcap';
+      out.width = cw; out.height = ch;
+      out.style.cssText = `left:${-pad}px;top:${-pad}px;width:${W}px;height:${H}px`;
+      const o = out.getContext('2d');
+      const sink = fs * dpr * 0.03;
+      let x = 0;
+      while (x < cw) {
+        if (smooth[x] < 0.4) { x++; continue; }
+        const start = x;
+        while (x < cw && smooth[x] >= 0.4) x++;
+        o.beginPath();
+        o.moveTo(start, top[start] + sink);
+        for (let i = start; i < x; i++) o.lineTo(i, top[i] - smooth[i]);
+        for (let i = x - 1; i >= start; i--) o.lineTo(i, top[i] + sink);
+        o.closePath();
+        const g = o.createLinearGradient(0, top[start] - max, 0, top[start] + sink);
+        g.addColorStop(0, '#FFFFFF'); g.addColorStop(0.7, '#F1F7FB'); g.addColorStop(1, '#BCD3E5');
+        o.fillStyle = g;
+        o.shadowColor = 'rgba(0, 0, 0, 0.28)'; o.shadowBlur = 1.5 * dpr; o.shadowOffsetY = 0.6 * dpr;
+        o.fill();
+      }
+      el.appendChild(out);
+    }
+  }
+  const fontsReady = (document.fonts && document.fonts.ready) || Promise.resolve();
+  const capSoon = root => fontsReady.then(() => requestAnimationFrame(() => capNames(root)));
+
   // ---------- Data ----------
   async function load(fresh) {
     $('#refresh').classList.add('spinning');
@@ -59,6 +161,7 @@
       state.data = DEMO ? demoData() : await (await fetch(API + '/games' + (fresh ? '?fresh=1' : ''), { cache: 'no-store' })).json();
       if (!state.data || !Array.isArray(state.data.games)) throw new Error(state.data && state.data.error || 'Bad response');
       render();
+      capSoon(document);
       const m = location.hash.match(/^#game-(.+)$/);
       if (m && !GameView.isOpen()) GameView.open(m[1], true);
     } catch (err) {
@@ -74,14 +177,24 @@
   // ---------- Rendering ----------
   function render() {
     const games = state.data.games;
-    renderHero(games);
 
-    const shown = state.filter === 'weather' ? games.filter(analyzed) : games;
-    if (!shown.length) {
-      $('#list').innerHTML = `<p class="empty">No games in the next ${state.data.daysAhead || 7} days.</p>`;
+    // Any game with a chance of snow moves to the top: the worst one in the hero, the rest as featured cards.
+    const featured = games.filter(g => analyzed(g) && g.level > 0 && !g.live)
+      .sort((a, b) => b.level - a.level || b.wx.snowIn - a.wx.snowIn || new Date(a.kickoff) - new Date(b.kickoff));
+    renderHero(games, featured);
+
+    const more = featured.slice(1);
+    $('#featured').innerHTML = more.length ? `
+      <h2 class="section-head">More snow on the radar</h2>
+      <div class="feature-grid">${more.map(featureCard).join('')}</div>` : '';
+
+    const rest = games.filter(g => !featured.includes(g));
+    $('#list-head').textContent = featured.length ? 'Every other game this week' : "This week's games";
+    if (!rest.length) {
+      $('#list').innerHTML = `<p class="empty">${games.length ? 'Every game this week is on snow watch.' : `No games in the next ${state.data.daysAhead || 7} days.`}</p>`;
     } else {
       const days = new Map();
-      for (const g of shown) {
+      for (const g of rest) {
         const key = new Date(g.kickoff).toDateString();
         if (!days.has(key)) days.set(key, []);
         days.get(key).push(g);
@@ -112,15 +225,14 @@
     </div>`;
   }
 
-  function renderHero(games) {
+  function renderHero(games, threats) {
     const hero = document.querySelector('.hero');
-    const threats = games.filter(g => analyzed(g) && g.level > 0 && !g.live)
-      .sort((a, b) => b.level - a.level || b.wx.snowIn - a.wx.snowIn || new Date(a.kickoff) - new Date(b.kickoff));
     const g = threats[0];
 
     if (!g) {
       const coldest = games.filter(x => analyzed(x) && x.wx).sort((a, b) => a.wx.lowF - b.wx.lowF)[0];
       hero.classList.add('calm');
+      $('#hero-body').style.setProperty('--snow', 0);
       $('#hero-body').innerHTML = `
         <p class="hero-kicker">${flakeIcon} No snow in the forecast</p>
         <h2 class="hero-title">All clear for the next ${state.data.daysAhead || 7} days</h2>
@@ -130,13 +242,14 @@
     }
 
     hero.classList.remove('calm');
+    $('#hero-body').style.setProperty('--snow', glow(g));
     const cls = g.level === 2 ? 'likely' : 'possible';
     const more = threats.length > 1 ? `<span class="more">+${threats.length - 1} more below</span>` : '';
     const roof = g.roof === 'retractable' ? ' Retractable roof, so it may be closed.' : '';
     $('#hero-body').innerHTML = `
       <p class="hero-kicker ${cls}">${flakeIcon} ${g.level === 2 ? 'Snow game likely' : 'Snow possible'} ${more}</p>
       <div class="matchup">${logo(g.away)}<span class="at">at</span>${logo(g.home)}</div>
-      <h2 class="hero-title">${esc(g.away.name)} at ${esc(g.home.name)}</h2>
+      <h2 class="hero-title">${snowy(g.away.name)} at ${snowy(g.home.name)}</h2>
       <p class="hero-when">${esc(fmtWhen(g.kickoff))}, ${esc(g.venue.name)}.${roof}</p>
       <div class="hero-numbers">
         <div class="big-snow ${cls}">${inches(g.wx.snowIn)}<span class="big-snow-label">snow during the game</span></div>
@@ -174,12 +287,30 @@
     return `<span class="chip temp">${live}${range}</span>`;
   }
 
+  function featureCard(g) {
+    const cls = g.level === 2 ? 'likely' : 'possible';
+    const when = new Date(g.kickoff).toLocaleDateString([], { weekday: 'short' }) + ' ' + fmtTime(g.kickoff);
+    const roof = g.roof === 'retractable' ? ' Roof may be closed.' : '';
+    return `<button class="feature-card ${cls}${seed(g.id) % 2 ? ' flip' : ''}" style="--snow:${glow(g)}" data-open="${esc(g.id)}" aria-label="Open forecast for ${esc(g.away.name)} at ${esc(g.home.name)}">
+      <span class="fc-top">
+        <span class="fc-kicker">${flakeIcon}${g.level === 2 ? 'Snow likely' : 'Snow possible'}</span>
+        <span class="fc-when">${esc(when)}</span>
+      </span>
+      <span class="fc-teams">${logo(g.away)}<span class="at">at</span>${logo(g.home)}</span>
+      <span class="fc-title">${snowy(g.away.name)} at ${snowy(g.home.name)}</span>
+      <span class="fc-bottom">
+        <span class="fc-snow">${inches(g.wx.snowIn)}<small>snow in game</small></span>
+        <span class="fc-facts">${g.wx.lowF}–${g.wx.highF}°, ${g.wx.coldPrecipChance || g.wx.precipChance}% precip<br>${esc(g.venue.name)}.${roof}</span>
+      </span>
+    </button>`;
+  }
+
   function gameRow(g) {
     const tone = g.level === 2 ? 'likely' : g.level === 1 ? 'possible' : '';
-    return `<div class="game-wrap ${tone}">
+    return `<div class="game-wrap ${tone}${seed(g.id) % 2 ? ' flip' : ''}" style="--snow:${glow(g)}">
       <button class="game" data-id="${esc(g.id)}" aria-label="Open forecast for ${esc(g.away.name)} at ${esc(g.home.name)}">
         <div>
-          <div class="teams">${logo(g.away)} ${esc(g.away.abbr)} <span class="at">at</span> ${logo(g.home)} ${esc(g.home.abbr)}</div>
+          <div class="teams">${logo(g.away)} ${snowy(g.away.abbr)} <span class="at">at</span> ${logo(g.home)} ${snowy(g.home.abbr)}</div>
           <div class="game-meta"><span>${esc(fmtTime(g.kickoff))}</span><span>${esc(g.venue.city || g.venue.name)}</span>${g.broadcast ? `<span>${esc(g.broadcast)}</span>` : ''}</div>
         </div>
         ${chip(g)}
@@ -400,6 +531,8 @@
       if (!g) return;
       current = g;
       body.innerHTML = renderGame(g);
+      body.style.setProperty('--snow', glow(g));
+      capSoon(body);
       view.hidden = false;
       view.scrollTop = 0;
       document.body.classList.add('gv-open');
@@ -449,7 +582,7 @@
 
       const head = `
         <div class="gv-matchup">${logo(g.away)}<span class="at">at</span>${logo(g.home)}</div>
-        <h2 class="gv-title">${esc(g.away.name)} at ${esc(g.home.name)}</h2>
+        <h2 class="gv-title">${snowy(g.away.name)} at ${snowy(g.home.name)}</h2>
         <p class="gv-when">${esc(fmtWhen(g.kickoff))}${g.broadcast ? ' on ' + esc(g.broadcast) : ''}<br>${esc(g.venue.name)}${g.venue.city ? ', ' + esc(g.venue.city) : ''}</p>
         ${verdict}`;
 
@@ -738,11 +871,10 @@
   })();
 
   // ---------- Wiring ----------
-  document.querySelectorAll('.tabs button').forEach(btn => btn.addEventListener('click', () => {
-    state.filter = btn.dataset.filter;
-    document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b === btn)));
-    render();
-  }));
+  $('#featured').addEventListener('click', e => {
+    const card = e.target.closest('[data-open]');
+    if (card) GameView.open(card.dataset.open);
+  });
 
   $('#list').addEventListener('click', e => {
     const btn = e.target.closest('.game');
