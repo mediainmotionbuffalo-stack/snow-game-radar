@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B1626">
+  <meta name="description" content="Know when an NFL game is headed for snow.">
+  <title>Snow Game Radar</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Frozen field + falling snow sit behind everything -->
+  <div class="field" aria-hidden="true"></div>
+  <canvas id="snow" aria-hidden="true"></canvas>
+
+  <header class="bar">
+    <h1 class="wordmark">
+      <svg class="wordmark-flake" viewBox="0 0 24 24" aria-hidden="true"><use href="#flake"/></svg>
+      Snow Game Radar
+    </h1>
+    <div class="bar-actions">
+      <button class="icon-btn" id="refresh" aria-label="Refresh forecast">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg>
+      </button>
+      <button class="icon-btn" id="bell" aria-label="Alert settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>
+        <span class="bell-dot" hidden></span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-live="polite">
+      <div class="lights" aria-hidden="true">
+        <svg class="tower left" viewBox="0 0 60 120"><use href="#tower"/></svg>
+        <svg class="tower right" viewBox="0 0 60 120"><use href="#tower"/></svg>
+        <span class="beam left"></span>
+        <span class="beam right"></span>
+      </div>
+      <div class="hero-body" id="hero-body"><p class="hero-quiet">Checking the forecast…</p></div>
+    </section>
+
+    <section id="featured" class="featured" aria-live="polite"></section>
+
+    <h2 class="section-head list-head" id="list-head">This week's games</h2>
+    <section id="list" class="list" aria-live="polite"></section>
+  </main>
+
+  <footer class="drift">
+    <p class="footnote" id="footnote"></p>
+    <svg class="drift-art" viewBox="0 0 400 90" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 52 C40 30 80 44 120 38 S200 18 250 34 S330 50 360 30 S395 24 400 28 V90 H0Z" fill="#C9DCEA"/>
+      <path d="M0 64 C50 48 90 60 140 54 S230 40 280 52 S360 62 400 46 V90 H0Z" fill="#E4EEF5"/>
+    </svg>
+    <svg class="drift-ball" viewBox="0 0 64 36" aria-hidden="true"><use href="#football"/></svg>
+  </footer>
+
+  <!-- Full-screen forecast for one game -->
+  <section id="game-view" class="gv" hidden aria-label="Game forecast">
+    <header class="gv-bar">
+      <button class="gv-back" id="gv-back" aria-label="Back to all games">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        Games
+      </button>
+    </header>
+    <div class="gv-body" id="gv-body"></div>
+    <div class="gv-intro" id="gv-intro" hidden>
+      <canvas aria-hidden="true"></canvas>
+      <p class="gv-intro-title" id="gv-intro-title"></p>
+    </div>
+  </section>
+
+  <dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <h2 id="sheet-title">Snow alerts</h2>
+    <p id="sheet-status" class="sheet-status"></p>
+    <div class="sheet-actions" id="sheet-actions"></div>
+    <p class="sheet-note">Checks run every 3 hours. You get one alert when snow becomes possible, and another if it turns likely.</p>
+    <button class="text-btn" id="sheet-close">Close</button>
+  </dialog>
+
+  <!-- Shared drawings -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="flake" viewBox="0 0 24 24">
+        <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M12 2v20M3.3 7l17.4 10M3.3 17l17.4-10"/>
+          <path d="M9.5 3.8 12 6l2.5-2.2M9.5 20.2 12 18l2.5 2.2M3.6 10.2 6.8 9.3 6 6.1M20.4 13.8l-3.2.9.8 3.2M3.6 13.8l3.2.9-.8 3.2M20.4 10.2l-3.2-.9.8-3.2"/>
+        </g>
+      </symbol>
+      <symbol id="football" viewBox="0 0 64 36">
+        <ellipse cx="32" cy="18" rx="30" ry="16" fill="#7A4526"/>
+        <ellipse cx="32" cy="18" rx="30" ry="16" fill="none" stroke="#5C3219" stroke-width="2"/>
+        <path d="M9 11c4 2 4 12 0 14M55 11c-4 2-4 12 0 14" stroke="#F4EFE6" stroke-width="2" fill="none"/>
+        <path d="M22 18h20" stroke="#F4EFE6" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M25 15v6M29 15v6M33 15v6M37 15v6M41 15v6" stroke="#F4EFE6" stroke-width="1.8" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="tower" viewBox="0 0 60 120">
+        <rect x="27" y="40" width="6" height="80" fill="#1D3048"/>
+        <rect x="6" y="6" width="48" height="34" rx="3" fill="#1D3048"/>
+        <g fill="#FFE7B0">
+          <circle cx="15" cy="15" r="4"/><circle cx="25" cy="15" r="4"/><circle cx="35" cy="15" r="4"/><circle cx="45" cy="15" r="4"/>
+          <circle cx="15" cy="27" r="4"/><circle cx="25" cy="27" r="4"/><circle cx="35" cy="27" r="4"/><circle cx="45" cy="27" r="4"/>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
