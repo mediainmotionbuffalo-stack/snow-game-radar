@@ -1,0 +1,552 @@
+:root {
+  --night: #0B1626;    /* sky over a night game */
+  --ink: #0F1C2E;
+  --glass: rgba(17, 32, 52, 0.62);
+  --line: rgba(160, 196, 225, 0.18);
+  --frost: #E9F1F7;    /* primary text, snow */
+  --mist: #93A8BC;     /* secondary text */
+  --ice: #8EC5E8;      /* snow possible */
+  --amber: #F5B841;    /* snow likely: stadium lights through snow */
+  --display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --body: 'Public Sans', system-ui, sans-serif;
+  --gutter: 16px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--night); }
+body {
+  margin: 0; min-height: 100vh; color: var(--frost);
+  font: 400 15px/1.45 var(--body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  background: radial-gradient(120% 60% at 50% 0%, #17304D 0%, var(--night) 60%);
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ice); outline-offset: 2px; border-radius: 6px; }
+
+/* ---------- Frozen field + snow layers ---------- */
+.field {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  /* yard lines every 5 yards, hash marks down both sides */
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 118px, rgba(233, 241, 247, 0.07) 118px 120px),
+    repeating-linear-gradient(to bottom, transparent 0 22px, rgba(233, 241, 247, 0.06) 22px 24px) left 22% top 0 / 14px 100% no-repeat,
+    repeating-linear-gradient(to bottom, transparent 0 22px, rgba(233, 241, 247, 0.06) 22px 24px) right 22% top 0 / 14px 100% no-repeat;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 30%, #000 85%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 30%, #000 85%, transparent);
+}
+#snow { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
+.bar, main, .drift { position: relative; z-index: 2; }
+
+/* ---------- Top bar with icicles ---------- */
+.bar {
+  position: sticky; top: 0; z-index: 4;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(10px + env(safe-area-inset-top)) var(--gutter) 10px;
+  background: rgba(11, 22, 38, 0.86);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.bar::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 14px; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='14'%3E%3Cpath d='M0 0h72v2H0z' fill='%23E9F1F7'/%3E%3Cpath d='M5 2l2.5 9L10 2zM17 2l2 5 2-5zM27 2l3 12 3-12zM41 2l2 6 2-6zM51 2l2.5 9 2.5-9zM63 2l1.6 4 1.6-4z' fill='%23CFE2F0'/%3E%3C/svg%3E") repeat-x;
+  opacity: 0.85;
+}
+.wordmark { margin: 0; display: flex; align-items: center; gap: 8px; font: 900 24px/1 var(--display); letter-spacing: 0.01em; }
+.wordmark-mark { width: 34px; height: 34px; margin: -6px -2px -6px -6px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45)); }
+.bar-actions { display: flex; gap: 4px; }
+.icon-btn {
+  position: relative; width: 40px; height: 40px; border: 0; border-radius: 50%;
+  background: transparent; display: grid; place-items: center; cursor: pointer;
+}
+.icon-btn:active { background: rgba(255, 255, 255, 0.08); }
+.icon-btn svg { width: 22px; height: 22px; fill: none; stroke: var(--frost); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn.spinning svg { animation: spin 0.9s linear infinite; }
+.bell-dot { position: absolute; top: 9px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+main { max-width: 560px; margin: 0 auto; }
+
+/* ---------- Hero: under the lights ---------- */
+.hero { position: relative; padding-top: 16px; }
+.lights { position: absolute; inset: 0 0 auto 0; height: 340px; pointer-events: none; overflow: hidden; }
+.tower { position: absolute; top: 8px; width: 46px; height: 92px; opacity: 0.95; filter: drop-shadow(0 0 10px rgba(255, 220, 150, 0.55)); }
+.tower.left { left: -6px; }
+.tower.right { right: -6px; }
+.beam {
+  position: absolute; top: 16px; width: 260px; height: 360px;
+  background: linear-gradient(to bottom, rgba(255, 228, 170, 0.22), rgba(255, 228, 170, 0) 85%);
+  clip-path: polygon(0 0, 14% 0, 100% 100%, 30% 100%);
+  mix-blend-mode: screen; filter: blur(2px);
+}
+.beam.left { left: 6px; }
+.beam.right { right: 6px; transform: scaleX(-1); }
+.hero.calm .beam { opacity: 0.45; }
+
+.hero-body { position: relative; padding: 70px var(--gutter) 8px; }
+.hero-quiet { color: var(--mist); }
+.hero-kicker { margin: 0 0 10px; display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--mist); }
+.hero-kicker svg { width: 16px; height: 16px; }
+.hero-kicker.likely { color: var(--amber); }
+.hero-kicker.possible { color: var(--ice); }
+.hero-kicker .more { color: var(--mist); font-weight: 400; }
+
+.matchup { display: flex; align-items: center; gap: 12px; }
+.matchup .logo { width: 64px; height: 64px; font-size: 16px; }
+.matchup .at { font: 600 22px/1 var(--display); color: var(--mist); }
+.hero-title { margin: 12px 0 0; font: 900 44px/0.92 var(--display); text-wrap: balance; }
+.hero-when { margin: 8px 0 0; color: var(--mist); }
+
+.hero-numbers { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-top: 18px; flex-wrap: wrap; }
+.big-snow { font: 900 92px/0.78 var(--display); letter-spacing: -0.01em; }
+.big-snow.likely { color: var(--amber); text-shadow: 0 0 28px rgba(245, 184, 65, 0.35); }
+.big-snow.possible { color: var(--ice); text-shadow: 0 0 24px rgba(142, 197, 232, 0.3); }
+.big-snow-label { display: block; font: 500 13px/1.2 var(--body); color: var(--mist); margin-top: 10px; text-shadow: none; }
+.side-stats { display: flex; gap: 18px; }
+.stat b { display: block; font: 800 28px/1 var(--display); }
+.stat span { font-size: 12px; color: var(--mist); }
+
+/* Snow meter drawn as a stretch of field */
+.meter { margin-top: 22px; }
+.meter-track {
+  position: relative; display: flex; height: 34px; border-radius: 6px; overflow: hidden;
+  border: 1px solid rgba(233, 241, 247, 0.35);
+  background:
+    repeating-linear-gradient(to right, transparent 0 calc(10% - 1px), rgba(233, 241, 247, 0.35) calc(10% - 1px) 10%),
+    #13314A;
+}
+.meter-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(to right, rgba(142, 197, 232, 0.15), rgba(233, 241, 247, 0.55)); }
+.meter-fill.likely { background: linear-gradient(to right, rgba(245, 184, 65, 0.12), rgba(245, 184, 65, 0.6)); }
+.meter-endzone {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 18%;
+  display: grid; place-items: center; font: 800 14px/1 var(--display); letter-spacing: 0.04em;
+  background: rgba(233, 241, 247, 0.12); border-left: 2px solid rgba(233, 241, 247, 0.6);
+}
+.meter-ball { position: absolute; top: 50%; width: 34px; height: 20px; transform: translate(-50%, -50%) rotate(-12deg); filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); }
+.meter-scale { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--mist); }
+
+/* Hourly strip */
+.hours {
+  display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 18px;
+  background: var(--glass); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.hour { padding: 10px 6px; text-align: center; }
+.hour + .hour { border-left: 1px solid var(--line); }
+.hour-time { font-size: 12px; color: var(--mist); }
+.hour-temp { font: 800 26px/1.1 var(--display); margin-top: 2px; }
+.hour-cond { font-size: 12px; }
+.hour-cond.snow { color: var(--ice); font-weight: 600; }
+
+/* ---------- Featured snow games + section heads ---------- */
+.section-head { margin: 30px var(--gutter) 4px; font: 900 28px/1 var(--display); }
+.featured .section-head { color: var(--frost); }
+.feature-grid { display: grid; gap: 12px; padding: 10px var(--gutter) 0; }
+.feature-card {
+  display: grid; gap: 8px; width: 100%; padding: 14px; text-align: left; cursor: pointer;
+  border-radius: 16px; background: var(--glass);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.fc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
+.fc-kicker { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ice); }
+.feature-card.likely .fc-kicker { color: var(--amber); }
+.fc-kicker svg { width: 14px; height: 14px; }
+.fc-when { color: var(--mist); }
+.fc-teams { display: flex; align-items: center; gap: 10px; }
+.fc-teams .logo { width: 44px; height: 44px; font-size: 12px; }
+.fc-teams .at { font: 600 18px/1 var(--display); color: var(--mist); }
+.fc-title { font: 900 30px/0.95 var(--display); }
+.fc-bottom { display: flex; align-items: flex-end; gap: 16px; }
+.fc-snow { font: 900 44px/0.85 var(--display); color: var(--ice); }
+.feature-card.likely .fc-snow { color: var(--amber); }
+.fc-snow small { display: block; margin-top: 6px; font: 500 12px/1.2 var(--body); color: var(--mist); }
+.fc-facts { font-size: 13px; color: var(--mist); padding-bottom: 2px; }
+.list-head { margin-top: 34px; }
+
+/* ---------- Game list ---------- */
+.list { padding: 0 var(--gutter); }
+.day { margin-top: 22px; }
+.day-head { display: flex; align-items: center; gap: 12px; margin: 0 0 8px; font: 800 22px/1.1 var(--display); }
+.day-head::after {
+  content: ''; flex: 1; height: 10px;
+  background: repeating-linear-gradient(to right, rgba(233, 241, 247, 0.4) 0 2px, transparent 2px 12px);
+  mask-image: linear-gradient(to right, #000, transparent); -webkit-mask-image: linear-gradient(to right, #000, transparent);
+}
+.day-games { display: grid; gap: 12px; padding-top: 4px; }
+.game-wrap {
+  border-radius: 14px; background: var(--glass);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.game {
+  width: 100%; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px;
+  padding: 12px 14px; border: 0; background: none; text-align: left; cursor: pointer;
+}
+.teams { display: flex; align-items: center; gap: 8px; font: 800 20px/1 var(--display); }
+.teams .at { color: var(--mist); font: 400 13px/1 var(--body); }
+.logo {
+  width: 30px; height: 30px; flex: none; display: inline-grid; place-items: center; border-radius: 50%;
+  font: 600 10px/1 var(--body); color: #fff;
+}
+img.logo { border-radius: 0; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+.game-meta { margin-top: 5px; font-size: 13px; color: var(--mist); display: flex; gap: 10px; flex-wrap: wrap; }
+.chip {
+  justify-self: end; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--mist);
+}
+.chip svg { width: 13px; height: 13px; }
+.chip.likely { background: var(--amber); border-color: var(--amber); color: var(--ink); box-shadow: 0 0 14px rgba(245, 184, 65, 0.45); }
+.chip.possible { border-color: var(--ice); color: var(--ice); }
+.chip.temp { color: var(--frost); }
+.chip .live { color: var(--amber); }
+
+.detail { padding: 0 14px 14px; }
+.detail[hidden] { display: none; }
+.detail .hours { margin-top: 0; background: rgba(11, 22, 38, 0.5); }
+.detail-facts { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--mist); margin-top: 10px; }
+.detail-facts b { color: var(--frost); font-weight: 600; }
+.detail-note { font-size: 13px; color: var(--mist); margin: 0 0 10px; }
+
+.empty, .error { margin: 24px 0; color: var(--mist); }
+.error button, .sheet-actions button.primary {
+  display: inline-block; margin-top: 10px; border: 0; border-radius: 999px; padding: 10px 18px;
+  background: var(--frost); color: var(--ink); font-weight: 600; cursor: pointer;
+}
+
+/* ---------- Snowdrift footer ---------- */
+.drift { margin-top: 28px; }
+.footnote { max-width: 560px; margin: 0 auto; padding: 0 var(--gutter) 6px; font-size: 12px; color: var(--mist); }
+.drift-art { display: block; width: 100%; height: 90px; margin-bottom: -1px; }
+.drift-ball { position: absolute; right: 18%; bottom: calc(26px + env(safe-area-inset-bottom)); width: 54px; transform: rotate(-18deg); }
+.drift::after { content: ''; display: block; height: env(safe-area-inset-bottom); background: #E9F1F7; }
+
+/* ---------- Alerts sheet ---------- */
+.sheet {
+  width: 100%; max-width: 560px; margin: auto auto 0; padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
+  border: 0; border-radius: 18px 18px 0 0; background: #15283F; color: var(--frost);
+}
+.sheet::backdrop { background: rgba(5, 10, 18, 0.6); }
+.sheet[open] { animation: rise 0.22s ease-out; }
+@keyframes rise { from { transform: translateY(40px); opacity: 0; } }
+.sheet-grip { width: 36px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 14px; }
+.sheet h2 { margin: 0; font: 900 30px/1 var(--display); }
+.sheet-status { color: var(--mist); }
+.sheet-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.sheet-actions button.secondary { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 10px 18px; cursor: pointer; }
+.sheet-note { font-size: 13px; color: var(--mist); margin-top: 18px; }
+.text-btn { border: 0; background: none; color: var(--mist); padding: 8px 0; cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-btn.spinning svg, .sheet[open] { animation: none; }
+}
+
+/* ---------- Open-forecast button on the hero ---------- */
+.open-btn {
+  margin-top: 16px; border: 1px solid rgba(233, 241, 247, 0.4); background: rgba(11, 22, 38, 0.5);
+  border-radius: 999px; padding: 10px 18px; font-weight: 600; cursor: pointer;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.game::after {
+  content: ''; width: 8px; height: 8px; margin-left: 2px;
+  border-right: 2px solid var(--mist); border-top: 2px solid var(--mist); transform: rotate(45deg);
+}
+.game { grid-template-columns: 1fr auto auto; }
+
+/* ---------- Full-screen game view ---------- */
+body.gv-open { overflow: hidden; }
+.gv {
+  position: fixed; inset: 0; z-index: 20; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background: radial-gradient(120% 50% at 50% 0%, #1A3554 0%, var(--night) 55%);
+}
+.gv[hidden] { display: none; }
+.gv-bar {
+  position: sticky; top: 0; z-index: 2; padding: calc(8px + env(safe-area-inset-top)) 8px 8px;
+  background: rgba(11, 22, 38, 0.86); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.gv-back { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 8px; font-weight: 600; cursor: pointer; }
+.gv-back svg { width: 20px; height: 20px; fill: none; stroke: var(--frost); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.gv-body { max-width: 560px; margin: 0 auto; padding: 22px var(--gutter) calc(40px + env(safe-area-inset-bottom)); }
+
+.gv-matchup { display: flex; align-items: center; gap: 14px; }
+.gv-matchup .logo { width: 72px; height: 72px; font-size: 18px; }
+.gv-matchup .at { font: 600 22px/1 var(--display); color: var(--mist); }
+.gv-title { margin: 14px 0 0; font: 900 44px/0.92 var(--display); text-wrap: balance; }
+.gv-when { margin: 10px 0 0; color: var(--mist); }
+.gv-verdict { display: inline-flex; align-items: center; gap: 6px; margin: 16px 0 0; padding: 6px 12px; border-radius: 999px; font-weight: 600; border: 1px solid var(--line); color: var(--mist); }
+.gv-verdict svg { width: 15px; height: 15px; }
+.gv-verdict.likely { background: var(--amber); border-color: var(--amber); color: var(--ink); box-shadow: 0 0 18px rgba(245, 184, 65, 0.4); }
+.gv-verdict.possible { border-color: var(--ice); color: var(--ice); }
+.gv-summary { margin: 16px 0 0; font-size: 16px; line-height: 1.55; max-width: 62ch; }
+
+.gv-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; margin-top: 22px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.gv-stat { background: #13253B; padding: 14px; }
+.gv-stat b { display: block; font: 800 30px/1 var(--display); }
+.gv-stat span { display: block; margin-top: 4px; font-size: 12px; color: var(--mist); }
+
+.gv-chart, .gv-table-wrap { margin-top: 18px; padding: 14px 14px 10px; background: #13253B; border: 1px solid var(--line); border-radius: 14px; }
+.gv-chart h3, .gv-table-wrap h3 { margin: 0; font: 800 22px/1.1 var(--display); }
+.gv-sub { margin: 4px 0 0; font-size: 12px; color: var(--mist); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--frost); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; }
+.legend i.box { width: 10px; height: 10px; border-radius: 2px; }
+.legend i.line { width: 16px; height: 2px; border-radius: 1px; }
+.chart { position: relative; margin-top: 8px; touch-action: pan-y; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ch-grid { stroke: rgba(160, 196, 225, 0.16); stroke-width: 1; }
+.ch-ref { stroke: rgba(233, 241, 247, 0.55); stroke-width: 1; }
+.ch-axis { fill: var(--mist); font: 500 11px var(--body); }
+.ch-note { fill: var(--mist); font: 600 11px var(--body); }
+.ch-end { fill: var(--frost); font: 600 11px var(--body); }
+.ch-cross { stroke: rgba(233, 241, 247, 0.6); stroke-width: 1; }
+.ch-tip {
+  position: absolute; top: 0; z-index: 3; min-width: 120px; padding: 8px 10px; border-radius: 10px; pointer-events: none;
+  background: #0B1626; border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); font-size: 12px;
+}
+.ch-tip b { display: block; margin-bottom: 4px; }
+.ch-tip span { display: flex; align-items: center; gap: 6px; color: var(--mist); }
+.ch-tip strong { margin-left: auto; padding-left: 10px; color: var(--frost); }
+.ch-tip i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+.gv-table-scroll { overflow-x: auto; margin-top: 10px; }
+.gv-table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.gv-table th { text-align: left; font-weight: 600; color: var(--mist); padding: 6px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.gv-table td { padding: 7px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.gv-table tr.in-game td { background: rgba(233, 241, 247, 0.06); }
+.gv-table tr.in-game td:first-child { box-shadow: inset 3px 0 0 var(--ice); }
+.gv-source { margin-top: 18px; font-size: 12px; color: var(--mist); }
+
+/* Opening animation: snow and team logos falling */
+.gv-intro {
+  position: fixed; inset: 0; z-index: 30; display: grid; place-items: center;
+  background: radial-gradient(90% 60% at 50% 40%, rgba(26, 53, 84, 0.96), rgba(11, 22, 38, 0.98));
+  transition: opacity 0.5s ease;
+}
+.gv-intro[hidden] { display: none; }
+.gv-intro.fading { opacity: 0; }
+.gv-intro canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gv-intro-title {
+  position: relative; margin: 0; padding: 0 24px; text-align: center;
+  font: 900 52px/0.95 var(--display); text-wrap: balance; text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- Snowy glow: every game card glows, more snow = more glow (--snow runs 0 to 1) ---------- */
+.game-wrap, .feature-card {
+  --snow: 0;
+  position: relative;
+  border: 1px solid rgba(233, 241, 247, calc(0.16 + 0.64 * var(--snow)));
+  box-shadow:
+    0 0 calc(4px + 40px * var(--snow)) calc(-2px + 8px * var(--snow)) rgba(214, 233, 247, calc(0.04 + 0.62 * var(--snow))),
+    0 0 calc(2px + 8px * var(--snow)) rgba(255, 255, 255, calc(0.35 * var(--snow))),
+    inset 0 0 calc(18px * var(--snow)) rgba(233, 241, 247, calc(0.24 * var(--snow)));
+}
+/* one irregular, shaded bank of snow along the top edge, deeper as the forecast snow builds; none on dry games */
+.game-wrap::before, .feature-card::before {
+  --drift: calc(4px + 18px * var(--snow));
+  content: ''; position: absolute; left: 10px; right: 10px; top: calc(-0.6 * var(--drift)); height: var(--drift); pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 24' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23FFFFFF'/%3E%3Cstop offset='.65' stop-color='%23EEF5FA'/%3E%3Cstop offset='1' stop-color='%23C9DDEC'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 24C6 22 10 18 18 17C27 16 31 12 41 12C50 12 55 15 63 14C74 13 79 7 92 7C104 7 110 11 120 11C128 11 133 5 146 4C158 3 166 9 176 10C185 11 190 8 199 8C212 8 217 13 229 13C240 13 246 10 255 11C266 12 273 17 282 19C290 20 295 22 300 24Z' fill='url(%23s)'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+  opacity: clamp(0, calc((var(--snow) - 0.3) * 4), 1);
+}
+.flip::before { transform: scaleX(-1); }
+.game-wrap > *, .feature-card > * { position: relative; }
+
+/* ---------- Snow resting on logos and team names ----------
+   Logos: a white silhouette of the logo sits behind it, nudged up, so a thin rim of snow
+   shows along the logo's real top contour. Names: the tops of the letters are capped with
+   snow that has an uneven edge and a shaded underside. Both get deeper as --snow rises. */
+.capped { position: relative; display: inline-grid; flex: none; }
+.capped > * { grid-area: 1 / 1; }
+.capped > .logo:first-child { position: relative; z-index: 1; }
+/* simple rim: only on snow games, and only until the traced snow loads */
+img.logo.logo-snow { display: none; }
+[data-snowgame] img.logo.logo-snow { display: block; }
+.capped > canvas.snowcap { position: absolute; pointer-events: none; }
+img.logo.logo-snow {
+  z-index: 0; pointer-events: none;
+  transform: translateY(calc(-4% - 5% * var(--snow, 0))) scale(1.05, 1.03);
+  filter: brightness(0) invert(1) drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.8));
+}
+[data-snowgame] .capped:has(> span.logo):not([data-capped])::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; border-radius: 50%; pointer-events: none;
+  background: #F6FAFD; box-shadow: 0 0 3px rgba(255, 255, 255, 0.7);
+  transform: translateY(calc(-6% - 5% * var(--snow, 0))) scale(1.04);
+}
+
+.snowy { position: relative; display: inline-block; }
+.snowcap { position: absolute; pointer-events: none; }
+
+/* living snow-drift meter */
+.drift-meter { display: block; width: 100%; height: 78px; }
+
+/* =====================================================================================
+   Live games, favorites, countdowns, badges, trends, model agreement
+   ===================================================================================== */
+.live-now:empty, .favs:empty, .featured:empty { display: none; }
+.live-now .section-head { margin-top: 22px; }
+.live-card {
+  display: grid; gap: 10px; width: 100%; padding: 14px; text-align: left; cursor: pointer;
+  border-radius: 16px; background: var(--glass); color: var(--frost);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.live-card.snowing { background: linear-gradient(160deg, rgba(245, 184, 65, 0.16), var(--glass) 55%); }
+.lc-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--mist); }
+.live-dot {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px;
+  background: #D8343A; color: #fff; font-weight: 700; font-size: 12px; letter-spacing: 0.02em;
+}
+.live-dot::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.25; transform: scale(0.7); } }
+.lc-snowing { display: inline-flex; align-items: center; gap: 5px; color: var(--amber); font-weight: 600; }
+.lc-snowing svg { width: 13px; height: 13px; }
+.lc-score { display: flex; align-items: center; gap: 10px; }
+.lc-score b { font: 900 46px/1 var(--display); min-width: 1ch; text-align: center; }
+.lc-dash { color: var(--mist); font: 600 28px/1 var(--display); }
+.lc-team { display: inline-flex; align-items: center; gap: 8px; font: 800 20px/1 var(--display); flex: 1; }
+.lc-team:last-child { justify-content: flex-end; flex-direction: row-reverse; }
+.lc-team .logo { width: 40px; height: 40px; }
+.lc-cond { font-size: 13px; color: var(--frost); }
+
+.meta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 10px; }
+.meta-row:empty { display: none; }
+.hero .meta-row { margin-top: 12px; }
+.countdown {
+  font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 999px;
+  background: rgba(233, 241, 247, 0.1); color: var(--frost); font-variant-numeric: tabular-nums;
+}
+.countdown.soon { background: rgba(245, 184, 65, 0.18); color: var(--amber); }
+.trend { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--mist); }
+.trend.up { color: var(--amber); }
+.trend.down { color: var(--ice); }
+.trend-arrow { width: 13px; height: 13px; fill: currentColor; }
+.agree { font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--mist); }
+.agree.all { border-color: rgba(245, 184, 65, 0.6); color: var(--amber); }
+.agree.split { border-color: rgba(142, 197, 232, 0.6); color: var(--ice); }
+.badge {
+  font: 800 13px/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 5px 9px 4px; border-radius: 6px; color: var(--ink);
+}
+.badge-tundra { background: linear-gradient(180deg, #E9F4FB, #B9D6EA); }
+.badge-ice { background: linear-gradient(180deg, #D7F0FF, #7FC3EE); box-shadow: 0 0 10px rgba(127, 195, 238, 0.6); }
+.badge-wind { background: linear-gradient(180deg, #E4E9EF, #AEBBC8); }
+.game-wrap .meta-row { margin-top: 6px; }
+
+.star { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.star.on { fill: var(--amber); stroke: var(--amber); }
+.fav-mark { display: inline-flex; margin-left: 4px; }
+.fav-mark .star { width: 14px; height: 14px; }
+.fc-when { display: inline-flex; align-items: center; gap: 4px; }
+.fav-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.fav-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(11, 22, 38, 0.5); font-size: 13px; font-weight: 600;
+}
+.fav-btn.on { border-color: rgba(245, 184, 65, 0.7); color: var(--amber); }
+
+/* =====================================================================================
+   Game view: live banner, share, models, history, radar, day vs night sky, effects
+   ===================================================================================== */
+.gv-sky { position: fixed; inset: 0 0 auto 0; height: 380px; pointer-events: none; z-index: 0; overflow: hidden; }
+.gv-sky .tower { position: absolute; top: 56px; width: 46px; height: 92px; filter: drop-shadow(0 0 10px rgba(255, 220, 150, 0.55)); }
+.gv-sky .tower.left { left: -6px; }
+.gv-sky .tower.right { right: -6px; }
+.gv-sky .beam {
+  position: absolute; top: 64px; width: 260px; height: 380px;
+  background: linear-gradient(to bottom, rgba(255, 228, 170, 0.2), rgba(255, 228, 170, 0) 85%);
+  clip-path: polygon(0 0, 14% 0, 100% 100%, 30% 100%); mix-blend-mode: screen; filter: blur(2px);
+}
+.gv-sky .beam.left { left: 6px; }
+.gv-sky .beam.right { right: 6px; transform: scaleX(-1); }
+.gv-sky .sun { display: none; }
+.gv.is-day { background: linear-gradient(180deg, #5F7690 0%, #33495F 30%, #182B41 60%, var(--night) 100%); }
+.gv.is-day .gv-sky .tower, .gv.is-day .gv-sky .beam { display: none; }
+.gv.is-day .gv-sky .sun {
+  display: block; position: absolute; top: -60px; right: -40px; width: 300px; height: 300px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 250, 235, 0.55), rgba(255, 250, 235, 0.12) 40%, rgba(255, 250, 235, 0) 70%);
+}
+.gv-fx { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; }
+.gv-bar { z-index: 3; }
+.gv-body { position: relative; z-index: 2; padding-bottom: calc(40px + var(--bank, 0px) + env(safe-area-inset-bottom)); }
+
+.hero.day .tower, .hero.day .beam { display: none; }
+.hero.day .lights {
+  background: radial-gradient(70% 90% at 85% 10%, rgba(255, 250, 235, 0.2), rgba(255, 250, 235, 0) 70%), linear-gradient(180deg, rgba(110, 135, 160, 0.3), rgba(110, 135, 160, 0) 90%);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 30%, #000 60%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 30%, #000 60%, transparent);
+}
+body.has-bank .drift-art, body.has-bank .drift-ball { display: none; }
+.drift { padding-bottom: var(--bank, 0px); }
+
+.gv-live {
+  margin-top: 16px; padding: 14px; border-radius: 14px; background: rgba(11, 22, 38, 0.6);
+  border: 1px solid rgba(216, 52, 58, 0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.gv-live.snowing { border-color: rgba(245, 184, 65, 0.7); box-shadow: 0 0 22px rgba(245, 184, 65, 0.2); }
+.gv-live-top { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--mist); }
+.gv-live-score { display: flex; align-items: center; gap: 10px; margin-top: 10px; font: 800 20px/1 var(--display); }
+.gv-live-score b { font: 900 44px/1 var(--display); }
+.gv-live-cond { margin-top: 10px; font-size: 14px; }
+.gv-live-snow { margin-top: 6px; font-size: 14px; color: var(--amber); }
+
+.share-btn {
+  display: block; width: 100%; margin-top: 18px; padding: 13px 18px; border-radius: 999px; cursor: pointer;
+  border: 0; background: var(--frost); color: var(--ink); font-weight: 700; font-size: 15px;
+}
+.share-btn:disabled { opacity: 0.6; }
+
+.models { display: grid; gap: 10px; margin-top: 12px; }
+.model-row { display: grid; grid-template-columns: 120px 1fr auto; align-items: center; gap: 10px; font-size: 13px; }
+.model-name { color: var(--frost); }
+.model-bar { height: 10px; border-radius: 0 4px 4px 0; background: rgba(160, 196, 225, 0.12); overflow: hidden; }
+.model-bar i { display: block; height: 100%; background: #3987E5; border-radius: 0 4px 4px 0; }
+.model-val { color: var(--mist); font-variant-numeric: tabular-nums; }
+.hist-chart { display: block; width: 100%; height: auto; margin-top: 8px; }
+
+.radar { position: relative; height: 240px; margin-top: 10px; border-radius: 10px; overflow: hidden; background: #0d1117; }
+.radar .rt { position: absolute; width: 256px; height: 256px; }
+.radar .rf { position: absolute; inset: 0; opacity: 0; transition: opacity 0.25s; }
+.radar .rf.on { opacity: 0.85; }
+.radar-pin {
+  position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
+  background: var(--amber); box-shadow: 0 0 0 3px rgba(11, 22, 38, 0.8), 0 0 14px rgba(245, 184, 65, 0.8);
+}
+.radar-time { position: absolute; left: 10px; bottom: 8px; padding: 3px 8px; border-radius: 6px; background: rgba(11, 22, 38, 0.8); font-size: 12px; }
+.radar-msg { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--mist); font-size: 13px; }
+.radar-credit { margin: 8px 0 0; font-size: 11px; color: var(--mist); }
+
+/* =====================================================================================
+   Frost, snowbank, toast
+   ===================================================================================== */
+.frost { position: fixed; inset: 0; z-index: 26; pointer-events: none; }
+.snowbank { position: fixed; left: 0; right: 0; bottom: 0; width: 100vw; height: 170px; z-index: 25; pointer-events: none; }
+main { padding-bottom: var(--bank, 0px); }
+.toast {
+  position: fixed; left: 50%; bottom: calc(24px + var(--bank, 0px) + env(safe-area-inset-bottom)); z-index: 40;
+  transform: translate(-50%, 20px); opacity: 0; transition: opacity 0.25s, transform 0.25s;
+  padding: 10px 16px; border-radius: 999px; background: rgba(233, 241, 247, 0.95); color: var(--ink);
+  font-weight: 600; font-size: 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* =====================================================================================
+   Settings sheet
+   ===================================================================================== */
+.sheet { max-height: 88vh; overflow-y: auto; }
+.sheet-head { margin: 22px 0 6px; font: 800 20px/1.1 var(--display); }
+.switch { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 15px; cursor: pointer; }
+.switch[hidden] { display: none; }
+.switch input { width: 20px; height: 20px; accent-color: var(--amber); }
+.switch input:disabled + span { color: var(--mist); }
+.team-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+.team-pick {
+  display: grid; justify-items: center; gap: 4px; padding: 8px 4px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(11, 22, 38, 0.35); font-size: 11px; color: var(--mist);
+}
+.team-pick img { width: 34px; height: 34px; object-fit: contain; }
+.team-pick.on { border-color: var(--amber); background: rgba(245, 184, 65, 0.12); color: var(--frost); box-shadow: 0 0 12px rgba(245, 184, 65, 0.25); }
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot::before { animation: none; }
+  .toast { transition: none; }
+}
