@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B1626">
+  <meta name="description" content="Know when an NFL game is headed for snow.">
+  <title>Snow Game Radar</title>
+  <link rel="manifest" href="manifest.json">
+  <script>try{var sgrT=JSON.parse(localStorage.getItem('sgr:theme')||'"night"');document.documentElement.dataset.theme=sgrT;}catch(e){var sgrT='night';}</script>
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" id="favicon">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Public+Sans:wght@400;500;600&family=VT323&family=Doto:wght@700;900&family=Bungee&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Loading screen -->
+  <div class="splash" id="splash" aria-hidden="true">
+    <canvas id="splash-snow"></canvas>
+    <img class="splash-crest" id="splash-logo" src="icons/logo-badge.png" alt="Snow Game Radar">
+    <script>if (sgrT && sgrT !== 'night') document.getElementById('splash-logo').src = 'icons/logo-badge-' + sgrT + '.png';</script>
+    <p class="splash-sub" id="splash-sub">Checking the forecast</p>
+    <span class="splash-bar"><i></i></span>
+  </div>
+
+  <!-- Frozen field + falling snow sit behind everything -->
+  <div class="field" aria-hidden="true"></div>
+  <canvas id="turf" class="turf" aria-hidden="true"></canvas>
+  <canvas id="snow" aria-hidden="true"></canvas>
+
+  <header class="bar">
+    <h1 class="wordmark">
+      <img class="wordmark-mark" id="header-mark" src="icons/mark-mini-96.png" alt="" width="34" height="34">
+      Snow Game Radar
+    </h1>
+    <div class="bar-actions">
+      <button class="icon-btn" id="theme-btn" aria-label="Choose a theme" aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.9 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11.5" r="1.2"/><circle cx="10.5" cy="7.5" r="1.2"/><circle cx="15.5" cy="7.5" r="1.2"/></svg>
+      </button>
+      <button class="icon-btn" id="refresh" aria-label="Refresh forecast">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg>
+      </button>
+      <button class="icon-btn" id="bell" aria-label="Settings and alerts">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>
+        <span class="bell-dot" hidden></span>
+      </button>
+    </div>
+  </header>
+  <div class="theme-pop" id="theme-pop" hidden>
+    <p class="theme-pop-head">Theme</p>
+    <button class="theme-opt" data-theme-pick="night">
+      <span class="theme-swatch sw-night"></span><span><b>Night Game</b><small>Under the lights, stadium photos</small></span>
+    </button>
+    <button class="theme-opt" data-theme-pick="field">
+      <span class="theme-swatch sw-field"></span><span><b>On the Field</b><small>Grass that changes with the weather</small></span>
+    </button>
+    <button class="theme-opt" data-theme-pick="scoreboard">
+      <span class="theme-swatch sw-scoreboard"></span><span><b>80s NFL Theme</b><small>Old stadium scoreboard lights</small></span>
+    </button>
+    <button class="theme-opt" data-theme-pick="ninety">
+      <span class="theme-swatch sw-ninety"></span><span><b>90s NFL Theme</b><small>A 90s pregame show, video game style</small></span>
+    </button>
+    <button class="theme-opt" data-theme-pick="retro">
+      <span class="theme-swatch sw-retro"></span><span><b>Retro TV</b><small>A snow game on a 1970s–80s television</small></span>
+    </button>
+  </div>
+
+  <main>
+    <div class="whatsnew" id="whatsnew" hidden></div>
+    <div class="gameday" id="gameday" hidden></div>
+    <p class="fresh" id="fresh"></p>
+    <button class="report-btn" id="report-btn"><span class="rb-icon" aria-hidden="true">▶</span><span><b>Snow Game Report</b><small>Hear this week's weather rundown</small></span></button>
+
+    <section id="live-now" class="live-now" aria-live="polite"></section>
+
+    <section class="hero" aria-live="polite">
+      <div class="lights" aria-hidden="true">
+        <svg class="tower left" viewBox="0 0 60 120"><use href="#tower"/></svg>
+        <svg class="tower right" viewBox="0 0 60 120"><use href="#tower"/></svg>
+        <span class="beam left"></span>
+        <span class="beam right"></span>
+      </div>
+      <div class="hero-body" id="hero-body"><p class="hero-quiet">Checking the forecast…</p></div>
+    </section>
+
+    <section id="featured" class="featured" aria-live="polite"></section>
+
+    <section id="wotw" class="wotw" aria-live="polite"></section>
+
+    <section id="weather-games" class="featured weather-games" aria-live="polite"></section>
+
+    <section id="outlook" class="outlook" aria-live="polite"></section>
+
+    <section id="season" class="season" aria-live="polite"></section>
+
+    <section id="favs" class="favs" aria-live="polite"></section>
+
+    <h2 class="section-head list-head" id="list-head">This week's games</h2>
+    <section id="list" class="list" aria-live="polite"></section>
+
+    <section id="ranking" class="ranking" aria-live="polite"></section>
+  </main>
+
+  <footer class="drift">
+    <p class="footnote" id="footnote"></p>
+    <svg class="drift-art" viewBox="0 0 400 90" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 52 C40 30 80 44 120 38 S200 18 250 34 S330 50 360 30 S395 24 400 28 V90 H0Z" fill="#C9DCEA"/>
+      <path d="M0 64 C50 48 90 60 140 54 S230 40 280 52 S360 62 400 46 V90 H0Z" fill="#E4EEF5"/>
+    </svg>
+    <svg class="drift-ball" viewBox="0 0 64 36" aria-hidden="true"><use href="#football"/></svg>
+  </footer>
+
+  <!-- Full-screen forecast for one game -->
+  <section id="game-view" class="gv" hidden aria-label="Game forecast">
+    <div class="gv-photo" id="gv-photo" aria-hidden="true"></div>
+    <div class="gv-sky" aria-hidden="true">
+      <svg class="tower left" viewBox="0 0 60 120"><use href="#tower"/></svg>
+      <svg class="tower right" viewBox="0 0 60 120"><use href="#tower"/></svg>
+      <span class="beam left"></span>
+      <span class="beam right"></span>
+      <span class="sun"></span>
+    </div>
+    <canvas id="gv-fx" class="gv-fx" aria-hidden="true"></canvas>
+    <header class="gv-bar">
+      <button class="gv-back" id="gv-back" aria-label="Back to all games">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        Games
+      </button>
+    </header>
+    <div class="gv-body" id="gv-body"></div>
+    <div class="gv-intro" id="gv-intro" hidden>
+      <canvas aria-hidden="true"></canvas>
+      <p class="gv-intro-title" id="gv-intro-title"></p>
+    </div>
+  </section>
+
+  <div id="holiday" class="holiday" hidden></div>
+  <div id="whiteout" class="whiteout" aria-hidden="true"></div>
+  <canvas id="snowbank" class="snowbank" aria-hidden="true"></canvas>
+  <div class="crt" aria-hidden="true"><i class="crt-roll"></i></div>
+  <div class="station-bug" aria-hidden="true">SGR <b>7</b></div>
+  <canvas id="frost" class="frost" aria-hidden="true"></canvas>
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <h2 id="sheet-title">Settings</h2>
+
+    <section class="set-group">
+      <h3 class="sheet-head">Alerts</h3>
+      <p id="sheet-status" class="sheet-status"></p>
+      <div class="sheet-actions" id="sheet-actions"></div>
+      <label class="switch" id="only-favs-row"><input type="checkbox" id="only-favs"><span>Only alert me about my teams</span></label>
+      <p class="sheet-note">Forecasts are checked every 3 hours: one alert when a game becomes snow possible, another if it turns likely. During games, every 15 minutes: an alert when snow is really piling up.</p>
+    </section>
+
+    <section class="set-group">
+      <h3 class="sheet-head">My teams</h3>
+      <p class="sheet-note">Pick your teams to pin their games near the top.</p>
+      <div class="team-grid" id="team-grid"></div>
+    </section>
+
+    <section class="set-group">
+      <h3 class="sheet-head">Look and sound</h3>
+      <p class="sheet-note">Theme</p>
+      <div class="seg" id="set-theme" role="group" aria-label="Theme">
+        <button data-settheme="night">Night Game</button><button data-settheme="field">On the Field</button><button data-settheme="retro">Retro TV</button><button data-settheme="scoreboard">80s NFL</button><button data-settheme="ninety">90s NFL</button>
+      </div>
+      <label class="switch"><input type="checkbox" id="sound-on"><span>Sound effects</span></label>
+      <p class="sheet-note">Crunchy snow, wind, rain and thunder, the crowd in snow games, and the Snow Game Report jingle.</p>
+      <label class="switch"><input type="checkbox" id="low-power"><span>Battery saver</span></label>
+      <p class="sheet-note">Keeps the look but runs the animations lighter. <span id="slow-note"></span></p>
+      <p class="sheet-note">Holiday visitors: the week before Thanksgiving, Christmas, and New Year's, a few guests drop by.</p>
+      <div class="seg" id="holiday-pick" role="group" aria-label="Holiday visitors">
+        <button data-holiday="auto">Auto</button><button data-holiday="off">Off</button>
+        <button data-holiday="thanksgiving">Turkey</button><button data-holiday="christmas">Santa</button><button data-holiday="newyear">Jack Frost</button>
+      </div>
+    </section>
+
+    <section class="set-group">
+      <h3 class="sheet-head">Fun stuff</h3>
+      <p class="sheet-note">Snow Game Passport: earn a stadium stamp by opening a game while snow is falling there. <span id="passport-count"></span></p>
+      <button class="text-btn passport-btn" id="open-passport">Open your passport</button>
+      <p class="sheet-note">Kicking Combine records</p>
+      <div class="set-list" id="combine-records"></div>
+      <p class="sheet-note">Easter eggs found: <b id="eggs-count"></b></p>
+      <div class="set-list" id="eggs-list"></div>
+      <button class="text-btn passport-btn" id="replay-tour">Take the tour again</button>
+    </section>
+
+    <section class="set-group">
+      <h3 class="sheet-head">App status</h3>
+      <div class="set-list" id="app-status"><p class="sheet-note">Checking…</p></div>
+      <button class="text-btn passport-btn" id="show-whatsnew">What's new</button>
+      <p class="sheet-note" id="app-version"></p>
+    </section>
+
+    <button class="text-btn" id="sheet-close">Close</button>
+  </dialog>
+
+  <dialog id="tour" class="sheet tour" aria-labelledby="tour-title">
+    <div class="tour-slides" id="tour-slides"></div>
+    <div class="tour-dots" id="tour-dots"></div>
+    <div class="tour-actions"><button class="text-btn" id="tour-skip">Skip</button><button class="ks-kick" id="tour-next">Next</button></div>
+  </dialog>
+
+  <dialog id="passport" class="sheet passport" aria-labelledby="passport-title">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <h2 id="passport-title">Snow Game Passport</h2>
+    <div id="passport-body"></div>
+    <button class="text-btn" id="passport-close">Close</button>
+  </dialog>
+
+  <dialog id="report" class="sheet report" aria-labelledby="report-title">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <h2 id="report-title">Snow Game Report</h2>
+    <p class="sheet-status" id="report-status"></p>
+    <div class="report-lines" id="report-lines"></div>
+    <div class="report-actions"><button class="text-btn passport-btn" id="report-again">Play again</button><button class="text-btn" id="report-close">Close</button></div>
+  </dialog>
+
+  <!-- Shared drawings -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="flake" viewBox="0 0 24 24">
+        <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M12 2v20M3.3 7l17.4 10M3.3 17l17.4-10"/>
+          <path d="M9.5 3.8 12 6l2.5-2.2M9.5 20.2 12 18l2.5 2.2M3.6 10.2 6.8 9.3 6 6.1M20.4 13.8l-3.2.9.8 3.2M3.6 13.8l3.2.9-.8 3.2M20.4 10.2l-3.2-.9.8-3.2"/>
+        </g>
+      </symbol>
+      <symbol id="football" viewBox="0 0 64 36">
+        <ellipse cx="32" cy="18" rx="30" ry="16" fill="#7A4526"/>
+        <ellipse cx="32" cy="18" rx="30" ry="16" fill="none" stroke="#5C3219" stroke-width="2"/>
+        <path d="M9 11c4 2 4 12 0 14M55 11c-4 2-4 12 0 14" stroke="#F4EFE6" stroke-width="2" fill="none"/>
+        <path d="M22 18h20" stroke="#F4EFE6" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M25 15v6M29 15v6M33 15v6M37 15v6M41 15v6" stroke="#F4EFE6" stroke-width="1.8" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="tower" viewBox="0 0 60 120">
+        <rect x="27" y="40" width="6" height="80" fill="#1D3048"/>
+        <rect x="6" y="6" width="48" height="34" rx="3" fill="#1D3048"/>
+        <g fill="#FFE7B0">
+          <circle cx="15" cy="15" r="4"/><circle cx="25" cy="15" r="4"/><circle cx="35" cy="15" r="4"/><circle cx="45" cy="15" r="4"/>
+          <circle cx="15" cy="27" r="4"/><circle cx="25" cy="27" r="4"/><circle cx="35" cy="27" r="4"/><circle cx="45" cy="27" r="4"/>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
